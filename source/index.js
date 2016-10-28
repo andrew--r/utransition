@@ -4,12 +4,17 @@ const DURATION_RANGE_ERROR_DESCRIPTION = DURATION_TYPE_ERROR_DESCRIPTION;
 const linear = (progress) => progress;
 const emptyFn = () => {};
 
+const ERRORS = {
+	invalidFrameTimestamp: 'Expected to get frame timestamp, but got something else. Make sure your custom timer passes correct timestamp to frame handler',
+};
+
 export default function utransition(duration, options = {}) {
 	const {
 		onStart = emptyFn,
-		onFrame = emptyFn,
+		onTick = emptyFn,
 		onEnd = emptyFn,
 		easing = linear,
+		timer,
 	} = options;
 
 	if (typeof duration !== 'number') {
@@ -21,33 +26,37 @@ export default function utransition(duration, options = {}) {
 	}
 
 	let aborted = false;
-	let firstFrameTimestamp;
+	let firstTimestamp;
 
 	function abortTransition() {
 		aborted = true;
 	}
 
-	function handleFrame(frameTimestamp) {
+	function handleTick(timestamp) {
 		if (aborted) return;
-		if (!firstFrameTimestamp) {
-			firstFrameTimestamp = frameTimestamp;
+		if (typeof timestamp !== 'number') {
+			throw new TypeError(ERRORS.invalidFrameTimestamp);
+		}
+
+		if (!firstTimestamp) {
+			firstTimestamp = timestamp;
 			onStart(abortTransition);
 		}
 
-		const progress = (frameTimestamp - firstFrameTimestamp) / duration;
+		const progress = (timestamp - firstTimestamp) / duration;
 		const easedProgress = easing(progress);
 
-		onFrame(easedProgress, progress, abortTransition);
+		onTick(easedProgress, progress, abortTransition);
 
 		if (progress < 1) {
-			requestAnimationFrame(handleFrame);
+			timer(handleTick);
 		} else {
 			onEnd();
 		}
 	}
 
 	return function startTransition() {
-		requestAnimationFrame(handleFrame);
+		timer(handleTick);
 		return abortTransition;
 	};
 }

@@ -4,11 +4,10 @@ var utransition = require(`../build/utransition-${packageJson.version}`).default
 
 
 const FRAME_DELAY = 16;
-let timer = Date.now().valueOf();
+let timestamp = Date.now().valueOf();
 
-// emulate requestAnimationFrame just to test calculations
-global.requestAnimationFrame = (fn) => {
-	fn(timer += FRAME_DELAY);
+const timer = (fn) => {
+	fn(timestamp += FRAME_DELAY);
 };
 
 describe('utransition', () => {
@@ -24,6 +23,14 @@ describe('utransition', () => {
 		it('should throw a RangeError when duration is zero', () => {
 			expect(() => utransition(0)).to.throw(RangeError);
 		});
+
+		it('should throw a TypeError when custom timer is not passing correct timestamp to tick handler', () => {
+			expect(() => {
+				utransition(1, {
+					timer: (fn) => fn(),
+				})();
+			}).to.throw(TypeError);
+		});
 	});
 
 	describe('behaviour', () => {
@@ -31,6 +38,7 @@ describe('utransition', () => {
 			let started = false;
 
 			const start = utransition(200, {
+				timer,
 				onStart: () => {
 					started = true;
 				},
@@ -46,7 +54,8 @@ describe('utransition', () => {
 			const progressHistory = [];
 
 			const start = utransition(FRAME_DELAY * 5, {
-				onFrame(easedProgress, progress) {
+				timer,
+				onTick(easedProgress, progress) {
 					progressHistory.push([progress, easedProgress]);
 				},
 				easing(progress) {
@@ -71,7 +80,8 @@ describe('utransition', () => {
 			let abort;
 
 			const start = utransition(FRAME_DELAY * 5, {
-				onFrame(progress, linear, abort) {
+				timer,
+				onTick(progress, linear, abort) {
 					progressHistory.push(progress);
 
 					if (progress === 0.4) {
@@ -89,6 +99,7 @@ describe('utransition', () => {
 			let ended = false;
 
 			const start = utransition(200, {
+				timer,
 				onEnd: () => {
 					ended = true;
 				},
