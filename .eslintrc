@@ -1,0 +1,17 @@
+{
+	"extends": "airbnb",
+	"env": {
+		"browser": true
+	},
+	"rules": {
+		"indent": ["error", "tab", {
+			"SwitchCase": 1
+		}],
+		"no-tabs": 0,
+		"no-param-reassign": 0,
+		"object-curly-spacing": ["error", "never"],
+		"no-use-before-define": ["error", "nofunc"],
+		"comma-dangle": ["error", "always-multiline"],
+		"arrow-parens": ["error", "always"]
+	}
+}
