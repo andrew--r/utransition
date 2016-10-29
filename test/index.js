@@ -3,15 +3,20 @@ var packageJson = require('../package.json');
 var utransition = require(`../build/utransition-${packageJson.version}`).default;
 
 
-const FRAME_DELAY = 16;
+const TICK_DELAY = 16;
 let timestamp = Date.now().valueOf();
+let invalidTimestamp = Date.now().valueOf();
 
 const timer = (fn) => {
-	fn(timestamp += FRAME_DELAY);
+	fn(timestamp += TICK_DELAY);
+};
+
+const invalidTimer = (fn) => {
+	fn(invalidTimestamp -= TICK_DELAY);
 };
 
 describe('utransition', () => {
-	describe('invalid parameters handling', () => {
+	describe('invalid usage', () => {
 		it('should throw a TypeError when duration is not presented', () => {
 			expect(() => utransition()).to.throw(TypeError);
 		});
@@ -24,47 +29,89 @@ describe('utransition', () => {
 			expect(() => utransition(0)).to.throw(RangeError);
 		});
 
-		it('should throw a TypeError when custom timer is not passing correct timestamp to tick handler', () => {
+		it('should throw a TypeError if timer is not passed', () => {
+			expect(() => utransition(1)).to.throw(TypeError);
+		});
+
+		it('should throw an Error when custom timer is not passing timestamp to tick handler', () => {
 			expect(() => {
-				utransition(1, {
-					timer: (fn) => fn(),
-				})();
-			}).to.throw(TypeError);
+				const transition = utransition(1, (fn) => fn());
+				transition.start();
+			}).to.throw(Error);
+		});
+
+		it('should throw an Error when custom timer is passing incorrect timestamp values', () => {
+			expect(() => {
+				const transition = utransition(1, invalidTimer);
+				transition.start();
+			}).to.throw(Error);
+		});
+
+		it('should not override start() method', () => {
+			const transition = utransition(1, timer);
+			let flag = 0;
+
+			transition.start = () => { // should have no effect
+				flag = 1;
+			};
+
+			expect(flag).to.be.equal(0);
+			transition.start();
+			expect(flag).to.be.equal(0);
+		});
+
+		it('should not override abort() method', () => {
+			const progressHistory = [];
+			let abort;
+
+			const transition = utransition(TICK_DELAY * 5, timer);
+			transition.onProgress = function (progress) {
+				progressHistory.push(progress);
+
+				if (progress === 0.4) {
+					transition.abort();
+				}
+			};
+			transition.abort = function () {}; // should have no effect
+
+			expect(progressHistory).to.deep.equal([]);
+			transition.start();
+			expect(progressHistory).to.deep.equal([0, 0.2, 0.4]);
 		});
 	});
 
 	describe('behaviour', () => {
-		it('should return a function that starts transition', () => {
+		it('should return an object with API methods', () => {
+			const transition = utransition(200, timer);
+
+			expect(transition).to.be.an('object');
+			expect(transition.start).to.be.a('function');
+			expect(transition.abort).to.be.a('function');
+		});
+
+		it('should start transition after start() call', () => {
 			let started = false;
 
-			const start = utransition(200, {
-				timer,
-				onStart: () => {
-					started = true;
-				},
-			});
+			const transition = utransition(200, timer);
+			transition.onStart = function () {
+				started = true;
+			};
 
-			expect(start).to.be.a('function');
 			expect(started).to.be.false;
-			start();
+			transition.start();
 			expect(started).to.be.true;
 		});
 
 		it('should correctly calculate eased progress and linear progress', () => {
 			const progressHistory = [];
 
-			const start = utransition(FRAME_DELAY * 5, {
-				timer,
-				onTick(easedProgress, progress) {
-					progressHistory.push([progress, easedProgress]);
-				},
-				easing(progress) {
-					return progress * 2;
-				},
-			});
+			const transition = utransition(TICK_DELAY * 5, timer, (p) => p * 2);
+			transition.onProgress = function (easedProgress, progress) {
+				progressHistory.push([progress, easedProgress]);
+			};
 
 			expect(progressHistory).to.deep.equal([]);
-			start();
+			transition.start();
 			expect(progressHistory).to.deep.equal([
 				[0, 0],
 				[0.2, 0.4],
@@ -75,38 +122,36 @@ describe('utransition', () => {
 			]);
 		});
 
-		it('start function should return function that aborts transition', () => {
+		it('should abort transition after abort() call', () => {
 			const progressHistory = [];
 			let abort;
 
-			const start = utransition(FRAME_DELAY * 5, {
-				timer,
-				onTick(progress, linear, abort) {
-					progressHistory.push(progress);
+			const transition = utransition(TICK_DELAY * 5, timer);
+			transition.onProgress = function (progress) {
+				progressHistory.push(progress);
 
-					if (progress === 0.4) {
-						abort();
-					}
-				},
-			});
+				if (progress === 0.4) {
+					transition.abort(); // or this.abort()
+				}
+			};
 
 			expect(progressHistory).to.deep.equal([]);
-			abort = start();
+			transition.start();
 			expect(progressHistory).to.deep.equal([0, 0.2, 0.4]);
 		});
+
+
 
 		it('should invoke onEnd function when transition ended', () => {
 			let ended = false;
 
-			const start = utransition(200, {
-				timer,
-				onEnd: () => {
-					ended = true;
-				},
-			});
+			const transition = utransition(200, timer);
+			transition.onEnd = function () {
+				ended = true;
+			};
 
 			expect(ended).to.be.false;
-			start();
+			transition.start();
 			expect(ended).to.be.true;
 		});
 	});
