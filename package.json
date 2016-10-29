@@ -1,7 +1,7 @@
 {
   "name": "lib-boilerplate",
   "version": "1.0.0",
-  "main": "build/utransition.js",
+  "main": "build/utransition-1.0.0.js",
   "author": "Andrew Romanov <me@andrew-r.ru>",
   "license": "MIT",
   "scripts": {
