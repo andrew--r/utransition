@@ -1,7 +1,7 @@
 {
   "name": "utransition",
-  "version": "1.0.0",
-  "main": "build/utransition-1.0.0.js",
+  "version": "1.0.1",
+  "main": "build/utransition-1.0.1.js",
   "author": "Andrew Romanov <me@andrew-r.ru>",
   "license": "MIT",
   "scripts": {

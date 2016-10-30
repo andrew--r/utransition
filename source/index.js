@@ -2,7 +2,6 @@ const ERRORS = {
 	invalidDuration: 'duration must be a positive non-zero number',
 	invalidTimer: 'timer must be a function',
 	invalidTickTimestampType: 'Expected to get tick timestamp, but got something else. Make sure your custom timer passes correct timestamp to tick handler',
-	invalidTickTimestampValue: 'Timer works incorrectly, it should return increasing values but not decreasing',
 };
 
 const linear = (progress) => progress;
@@ -19,25 +18,6 @@ export default function utransition(duration, timer, easing = linear) {
 
 	if (typeof timer !== 'function') {
 		throw new TypeError(ERRORS.invalidTimer);
-	}
-
-	// ensure timer is working correctly
-	let firstTestTimestamp;
-	let secondTestTimestamp;
-	timer((t) => {
-		firstTestTimestamp = t;
-	});
-
-	timer((t) => {
-		secondTestTimestamp = t;
-	});
-
-	if (typeof firstTestTimestamp !== 'number' || typeof secondTestTimestamp !== 'number') {
-		throw new TypeError(ERRORS.invalidTickTimestampType);
-	}
-
-	if (firstTestTimestamp > secondTestTimestamp) {
-		throw new Error(ERRORS.invalidTickTimestampValue);
 	}
 
 	const API = {
@@ -71,6 +51,10 @@ export default function utransition(duration, timer, easing = linear) {
 			}
 
 			return;
+		}
+
+		if (typeof timestamp !== 'number') {
+			throw new TypeError(ERRORS.invalidTickTimestampType);
 		}
 
 		if (!firstTimestamp) {

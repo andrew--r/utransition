@@ -37,14 +37,7 @@ describe('utransition', () => {
 			expect(() => {
 				const transition = utransition(1, (fn) => fn());
 				transition.start();
-			}).to.throw(Error);
-		});
-
-		it('should throw an Error when custom timer is passing incorrect timestamp values', () => {
-			expect(() => {
-				const transition = utransition(1, invalidTimer);
-				transition.start();
-			}).to.throw(Error);
+			}).to.throw(TypeError);
 		});
 
 		it('should not override start() method', () => {
