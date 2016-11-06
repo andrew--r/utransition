@@ -2,12 +2,19 @@ const ERRORS = {
 	invalidDuration: 'duration must be a positive non-zero number',
 	invalidTimer: 'timer must be a function',
 	invalidTickTimestampType: 'Expected to get tick timestamp, but got something else. Make sure your custom timer passes correct timestamp to tick handler',
+	invalidEasing: 'easing must be a function',
+};
+
+const STATES = {
+	stopped: 'stopped',
+	paused: 'paused',
+	inProgress: 'in progress',
 };
 
 const linear = (progress) => progress;
 const emptyFn = () => {};
 
-export default function utransition(duration, timer, easing = linear) {
+function validateParameters(duration, timer, easing) {
 	if (typeof duration !== 'number') {
 		throw new TypeError(ERRORS.invalidDuration);
 	}
@@ -20,34 +27,90 @@ export default function utransition(duration, timer, easing = linear) {
 		throw new TypeError(ERRORS.invalidTimer);
 	}
 
+	if (typeof easing !== 'function') {
+		throw new TypeError(ERRORS.invalidEasing);
+	}
+}
+
+export default function utransition(duration, timer, easing = linear) {
+	validateParameters(duration, timer, easing);
+
+	let state = STATES.stopped;
+	let started = false;
+	let aborted = false;
+	let paused = false;
+	let prevTimestamp;
+	let linearProgress = 0;
+	let easedProgress = 0;
+
 	const API = {
 		onStart: emptyFn,
+		onPause: emptyFn,
+		onResume: emptyFn,
+		onAbort: emptyFn,
+
 		onProgress: emptyFn,
 		onEnd: emptyFn,
-		onAbort: emptyFn,
+
+		get state() {
+			return state;
+		},
+
+		get linearProgress() {
+			return linearProgress;
+		},
+
+		get easedProgress() {
+			return easedProgress;
+		},
 	};
-	let aborted = false;
-	let firstTimestamp;
 
 	Object.defineProperties(API, {
-		start: {
+		play: {
 			enumerable: true,
 			value() {
+				paused = false;
+				aborted = false;
+				state = STATES.inProgress;
 				timer(handleTick);
 			},
 		},
+
+		pause: {
+			enumerable: true,
+			value() {
+				paused = true;
+			},
+		},
+
 		abort: {
 			enumerable: true,
 			value() {
+				started = false;
 				aborted = true;
+				linearProgress = 0;
+				easedProgress = 0;
 			},
 		},
 	});
 
 	function handleTick(timestamp) {
 		if (aborted) {
+			state = STATES.stopped;
+
 			if (typeof API.onAbort === 'function') {
 				API.onAbort();
+			}
+
+			return;
+		}
+
+		if (paused) {
+			state = STATES.paused;
+			prevTimestamp = null;
+
+			if (typeof API.onPause === 'function') {
+				API.onPause();
 			}
 
 			return;
@@ -57,25 +120,36 @@ export default function utransition(duration, timer, easing = linear) {
 			throw new TypeError(ERRORS.invalidTickTimestampType);
 		}
 
-		if (!firstTimestamp) {
-			firstTimestamp = timestamp;
+		if (!prevTimestamp) {
+			prevTimestamp = timestamp;
 
-			if (typeof API.onStart === 'function') {
+			if (!started && typeof API.onStart === 'function') {
+				started = true;
 				API.onStart();
+			} else if (started && typeof API.onResume === 'function') {
+				API.onResume();
 			}
 		}
 
-		const progress = (timestamp - firstTimestamp) / duration;
-		const easedProgress = easing(progress);
+		linearProgress += (timestamp - prevTimestamp) / duration;
+		easedProgress = easing(linearProgress);
 
-		if (typeof API.onProgress === 'function') {
-			API.onProgress(easedProgress, progress);
+		if (timestamp - prevTimestamp && typeof API.onProgress === 'function') {
+			API.onProgress();
 		}
 
-		if (progress < 1) {
+		prevTimestamp = timestamp;
+
+		if (linearProgress < 1) {
 			timer(handleTick);
-		} else if (typeof API.onEnd === 'function') {
-			API.onEnd();
+		} else {
+			state = STATES.stopped;
+			linearProgress = 1;
+			easedProgress = easing(linearProgress);
+
+			if (typeof API.onEnd === 'function') {
+				API.onEnd();
+			}
 		}
 	}
 
