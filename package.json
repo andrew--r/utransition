@@ -1,14 +1,15 @@
 {
   "name": "utransition",
-  "version": "2.0.0",
-  "main": "build/utransition-2.0.0.js",
+  "version": "2.0.1",
+  "main": "build/utransition-2.0.1.js",
   "author": "Andrew Romanov <me@andrew-r.ru>",
   "license": "MIT",
+  "files": ["./build"],
   "scripts": {
-    "start": "rm -rf build && ./node_modules/.bin/webpack-dashboard -- ./node_modules/.bin/webpack --watch",
-    "build": "rm -rf build && ./node_modules/.bin/cross-env NODE_ENV=production ./node_modules/.bin/webpack --progress --colors",
-    "lint": "./node_modules/.bin/eslint ./source",
-    "test": "./node_modules/.bin/istanbul cover ./node_modules/.bin/_mocha -- -R spec test/*.js"
+    "start": "rm -rf build && webpack-dashboard -- webpack --watch",
+    "build": "rm -rf build && cross-env NODE_ENV=production webpack --progress --colors",
+    "lint": "eslint ./source",
+    "test": "istanbul cover mocha -- -R spec test/*.js"
   },
   "devDependencies": {
     "babel-core": "^6.18.0",

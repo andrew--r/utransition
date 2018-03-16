@@ -2,7 +2,6 @@ import path from 'path';
 import webpack from 'webpack';
 import packageJson from './package.json';
 
-
 const SOURCE = './source';
 const OUT = './build';
 
